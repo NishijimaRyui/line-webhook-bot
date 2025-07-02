@@ -3,66 +3,67 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-const CHANNEL_ACCESS_TOKEN = 'fbYGPBsXxfdnImlP3HGktrsp7WTn3hxjlC1AdvXsgACT2ob+HeRx5LBw88kUuE8P2khTX3nNE6lqL1aOiX0Q5hMSeWLoMVf33vQrJIjNqFNF2rvAENLV0tA0TbPBHlrd65cHAKfJQjyVxhy3Xn15wgdB04t89/1O/w1cDnyilFU=';
-const GOOGLE_AI_API_URL = 'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0133795545/locations/us-central1/publishers/google/models/text-bison@001:predict?key=AIzaSyAkS9IhRonvUi7IV77UAyzrFm_amAxMZFk';
+// 🔒 自分のAPIキーをここに入れてください
+const OPENAI_API_KEY = 'sk-XXXXXXXXXXXXXXXXXXXXXXXXXXXX'; // ←ここを自分のものに！
+const CHANNEL_ACCESS_TOKEN = '【あなたのLINEチャネルアクセストークン】';
+
+// OpenAI ChatGPTに問い合わせる関数
+async function getChatGPTResponse(userMessage) {
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: userMessage }],
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+      }
+    );
+
+    return response.data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('OpenAI API error:', error.response?.data || error.message);
+    return '申し訳ありません、AIの応答でエラーが発生しました。';
+  }
+}
 
 app.post('/callback', async (req, res) => {
   try {
     const events = req.body.events;
-    if (!events) return res.sendStatus(200);
+    if (!events || events.length === 0) return res.sendStatus(200);
 
     for (const event of events) {
       if (event.type === 'message' && event.message.type === 'text') {
         const userMessage = event.message.text;
         const replyToken = event.replyToken;
 
-        const requestBody = {
-          instances: [
-            {
-              content: userMessage
+        // ChatGPTからの返答を取得
+        const aiReply = await getChatGPTResponse(userMessage);
+
+        // LINEに返信
+        await axios.post(
+          'https://api.line.me/v2/bot/message/reply',
+          {
+            replyToken: replyToken,
+            messages: [{ type: 'text', text: aiReply }],
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
             }
-          ],
-          parameters: {
-            temperature: 0.5,
-            maxOutputTokens: 256
           }
-        };
-
-        // Google AI Studio API呼び出し
-        const aiResponse = await axios.post(GOOGLE_AI_API_URL, requestBody);
-
-        // レスポンス全体をログに出す（デバッグ用）
-        console.log('AI API response:', JSON.stringify(aiResponse.data, null, 2));
-
-        // AIの返答テキストを柔軟に取得
-        const aiText = aiResponse.data.predictions?.[0]?.content
-          || aiResponse.data[0]?.content
-          || 'すみません、うまく返答できませんでした。';
-
-        console.log('ユーザーメッセージ:', userMessage);
-        console.log('AI応答:', aiText);
-
-        const replyMessage = {
-          type: 'text',
-          text: aiText
-        };
-
-        // LINE返信API呼び出し
-        await axios.post('https://api.line.me/v2/bot/message/reply', {
-          replyToken: replyToken,
-          messages: [replyMessage]
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${CHANNEL_ACCESS_TOKEN}`
-          }
-        });
+        );
       }
     }
-    res.sendStatus(200);
 
+    res.sendStatus(200);
   } catch (error) {
-    console.error('Error handling webhook event:', error.response ? error.response.data : error.message);
+    console.error('Webhook handling error:', error);
     res.sendStatus(500);
   }
 });
