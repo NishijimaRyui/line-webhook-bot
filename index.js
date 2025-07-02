@@ -3,7 +3,7 @@ const axios = require('axios');  // HTTPリクエスト用
 const app = express();
 app.use(express.json());
 
-const CHANNEL_ACCESS_TOKEN = 'ここにあなたのチャネルアクセストークンを貼ってください';
+const CHANNEL_ACCESS_TOKEN = 'fbYGPBsXxfdnImlP3HGktrsp7WTn3hxjlC1AdvXsgACT2ob+HeRx5LBw88kUuE8P2khTX3nNE6lqL1aOiX0Q5hMSeWLoMVf33vQrJIjNqFNF2rvAENLV0tA0TbPBHlrd65cHAKfJQjyVxhy3Xn15wgdB04t89/1O/w1cDnyilFU=';
 
 app.post('/callback', async (req, res) => {
   try {
