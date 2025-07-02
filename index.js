@@ -1,15 +1,10 @@
 const express = require('express');
-const axios = require('axios');  // HTTPリクエスト用
+const axios = require('axios');
 const app = express();
 app.use(express.json());
+
 const CHANNEL_ACCESS_TOKEN = 'fbYGPBsXxfdnImlP3HGktrsp7WTn3hxjlC1AdvXsgACT2ob+HeRx5LBw88kUuE8P2khTX3nNE6lqL1aOiX0Q5hMSeWLoMVf33vQrJIjNqFNF2rvAENLV0tA0TbPBHlrd65cHAKfJQjyVxhy3Xn15wgdB04t89/1O/w1cDnyilFU=';
-
-
 const GOOGLE_AI_API_URL = 'https://us-central1-aiplatform.googleapis.com/v1/projects/gen-lang-client-0133795545/locations/us-central1/publishers/google/models/text-bison@001:predict?key=AIzaSyAkS9IhRonvUi7IV77UAyzrFm_amAxMZFk';
-
-
-// Google AI StudioのエンドポイントURL（PROJECT_ID, LOCATIONは自分の環境に書き換える）
-const GOOGLE_AI_API_URL = '';
 
 app.post('/callback', async (req, res) => {
   try {
@@ -21,7 +16,6 @@ app.post('/callback', async (req, res) => {
         const userMessage = event.message.text;
         const replyToken = event.replyToken;
 
-        // Google AI Studioに送るリクエストボディ（例）
         const requestBody = {
           instances: [
             {
@@ -37,18 +31,23 @@ app.post('/callback', async (req, res) => {
         // Google AI Studio API呼び出し
         const aiResponse = await axios.post(GOOGLE_AI_API_URL, requestBody);
 
-        // AIの返答テキストを取得（APIのレスポンス形式によるので要調整）
-        const aiText = aiResponse.data.predictions && aiResponse.data.predictions[0].content
-          ? aiResponse.data.predictions[0].content
-          : 'すみません、うまく返答できませんでした。';
+        // レスポンス全体をログに出す（デバッグ用）
+        console.log('AI API response:', JSON.stringify(aiResponse.data, null, 2));
 
-        // LINEの返信メッセージを作成
+        // AIの返答テキストを柔軟に取得
+        const aiText = aiResponse.data.predictions?.[0]?.content
+          || aiResponse.data[0]?.content
+          || 'すみません、うまく返答できませんでした。';
+
+        console.log('ユーザーメッセージ:', userMessage);
+        console.log('AI応答:', aiText);
+
         const replyMessage = {
           type: 'text',
           text: aiText
         };
 
-        // LINEの返信APIを呼び出す
+        // LINE返信API呼び出し
         await axios.post('https://api.line.me/v2/bot/message/reply', {
           replyToken: replyToken,
           messages: [replyMessage]
@@ -60,7 +59,6 @@ app.post('/callback', async (req, res) => {
         });
       }
     }
-
     res.sendStatus(200);
 
   } catch (error) {
